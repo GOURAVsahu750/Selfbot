@@ -1,29 +1,54 @@
 from telethon import TelegramClient, events
 from telethon.sessions import StringSession
 import time
+import sys
 
-api_id = 32557753
-api_hash = "3aec7775e6af24432f2414f941409876"
-STRING_SESSION = "1BVtsOKYBuzSXbkJ15Yjx9HhYTF8Frf5K1W3jFVFA1kW064TjA_Twb8VkAczmuzVLTh_Y0We9Mvf0lWsalFPjxdrPs6KtLN9EvJwcbW81w9svCSazjRnDhWxPYZ44-rrhXl1Lh8mAGL8L4NwM-tmm_Gyrfuk7blSPtOYJYCXKg6uKmPKKwkEhwvTgGj-eQIqgFYgHLZZ4zM8t_18qRtMcx2uL5K06hebzd-zVoeYhdqsTbDbIiVi_2cLJehskL1tHU73oSsqH4gN3ExF5rvgvcT3wBtO9u1xD7kDwpOVAUwvwPwvk2XjnISTqvK_zcDZL0gfNVHdjuk71ksUVmhGossJiY4Rx4yw="
+# ===== DETAILS =====
+api_id = 32557753              # apna API ID
+api_hash = "3aec7775e6af24432f2414f941409876"     # apna API HASH
+STRING_SESSION = "1BVtsOG0Bu6MwOfO9kH6eIuGTByS9Umtj0N68MX5_vfXxwe2FwpWaMdHZkb2ptbAAv9Klo-XjQoEzeQYf2Iq2cpXq6TZax9AkeTjr4bOoK_9QLVCUSIPXWlvGnP65x5fWRoq-fzSuPJaqJkhS1K3Zn4U9wOxgu2viwVsXoHICuc8TlHpZS4WTnQjATVX-_dnn97dtoBmDbln9tAch_Jea_I3ltQv3_XzRBTVhjO88zc4LPhaCsjf11CF8zpKuJGced81bj5H3zrPB0TXJaMOHIgXKD8yWc-qmy9qNMKZZENsf7zi0gPsBVEZKKa59y9pciD_c39gkgu9dzKHXlB49vZYhkcvgjsE="
+# ===================
+
+if not STRING_SESSION or len(STRING_SESSION) < 50:
+    print("❌ Invalid STRING_SESSION")
+    sys.exit(1)
 
 client = TelegramClient(StringSession(STRING_SESSION), api_id, api_hash)
 
-IDLE_LIMIT = 5
+IDLE_LIMIT = 1  # seconds
 last_active_time = time.time()
+last_offline_state = False
 replied_users = set()
 
+# -----------------------------
+# Track your activity (ONLINE)
+# -----------------------------
 @client.on(events.NewMessage(from_users='me'))
 async def track_activity(event):
-    global last_active_time, replied_users
+    global last_active_time, replied_users, last_offline_state
     last_active_time = time.time()
     replied_users.clear()
+    last_offline_state = False
 
+# -----------------------------
+# Auto reply in DM when OFFLINE
+# -----------------------------
 @client.on(events.NewMessage(incoming=True))
 async def auto_reply_dm(event):
+    global last_offline_state, replied_users
+
     if not event.is_private or event.out:
         return
 
-    if time.time() - last_active_time < IDLE_LIMIT:
+    idle_time = time.time() - last_active_time
+    offline_now = idle_time >= IDLE_LIMIT
+
+    # new offline cycle
+    if offline_now and not last_offline_state:
+        replied_users.clear()
+        last_offline_state = True
+
+    if not offline_now:
         return
 
     if event.sender_id in replied_users:
@@ -37,5 +62,6 @@ async def auto_reply_dm(event):
         "Aɴᴅ Rᴇᴩʟy Yᴏᴜ 😴😴"
     )
 
+print("🚀 Userbot started")
 client.start()
 client.run_until_disconnected()
